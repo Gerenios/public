@@ -1,0 +1,987 @@
+{
+    "$schema": "http://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "variables": {
+	  "Network": "ADFS-Network",
+	  "IntraSubnet": "Intra",
+	  "DMZSubnet": "DMZ",
+	  "DC-name": "DC",
+	  "CLIENT-name": "W10CLIENT",
+	  "DC-ip": "DC-ip",
+	  "CLIENT-ip": "CLIENT-ip",
+	  "WAP-ip": "WAP-ip",
+	  "ADFS-ip": "ADFS-ip",
+	  "Intra-nsg": "Intra-nsg",
+	  "DMZ-nsg": "DMZ-nsg",
+	  "DC-net": "DC-nic",
+	  "CLIENT-net": "CLIENT-nic",
+	  "WAP-net": "WAP-nic",
+	  "WAP-net-int": "WAP-nic-int",
+	  "ADFS-net": "ADFS-nic",
+	  "adminUsername": "adfsadmin",
+	  "adminPassword": "Qwerty1234567",
+	  "vnetId": "[resourceId('Microsoft.Network/virtualNetworks', variables('Network'))]",
+      "IntraSubnetRef": "[concat(variables('vnetId'), '/subnets/', variables('IntraSubnet'))]",
+	  "DMZSubnetRef": "[concat(variables('vnetId'), '/subnets/', variables('DmzSubnet'))]",
+	  "IpDC": "10.0.0.4",
+	  "IpCLIENT": "10.0.0.100",
+	  "IpWAP-1": "10.0.1.11",
+	  "IpWAP-2": "10.0.1.12",
+	  "IpWAPInt-1": "10.0.0.21",
+	  "IpWAPInt-2": "10.0.0.22",
+	  "IpADFS-1": "10.0.0.11",
+	  "IpADFS-2": "10.0.0.12",
+	  "IpADFS-LBInt": "10.0.0.10",
+	  "WAP-LB-ip": "WAP-LB-ip",
+	  "WAP-LB": "WAP-LB",
+	  "WAP-LB-Pool": "WAP-LB-Pool",
+	  "WAP-LB-Probe": "WAP-LB-Probe",
+	  "WAP-LB-Rule": "WAP-LB-Rule",
+	  "WAP-AS": "WAP-AS",
+	  "ADFS-LB": "ADFS-LB",
+	  "ADFS-LB-Pool": "ADFS-LB-Pool",
+	  "ADFS-LB-Probe": "ADFS-LB-Probe",
+	  "ADFS-LB-Rule": "ADFS-LB-Rule",
+	  "ADFS-AS": "ADFS-AS",
+	  "WAP-name": "WAP",
+	  "ADFS-name": "ADFS",
+	  "RDCFile": "<?xml version=\"1.0\" encoding=\"utf-8\"?><RDCMan programVersion=\"2.7\" schemaVersion=\"3\"><file>    <properties><expanded>True</expanded><name>ADFS-LAB</name></properties><logonCredentials inherit=\"None\"> <profileName scope=\"Local\">Custom</profileName><userName>ADMINUSERNAME</userName><password storeAsClearText=\"True\">ADMINPASSWORD</password><domain>.</domain></logonCredentials><remoteDesktop inherit=\"None\"><sameSizeAsClientArea>True</sameSizeAsClientArea><fullScreen>False</fullScreen>      <colorDepth>24</colorDepth></remoteDesktop><server><properties><displayName>ADFS-1</displayName><name>IP-ADFS-1</name></properties></server><server><properties><displayName>ADFS-2</displayName><name>IP-ADFS-2</name></properties></server><server><properties><displayName>CLIENT</displayName><name>IP-CLIENT</name></properties></server><server><properties><displayName>DC</displayName><name>IP-DC</name></properties></server><server><properties><displayName>WAP-1</displayName><name>IP-WAP-1</name></properties></server><server><properties><displayName>WAP-2</displayName><name>IP-WAP-2</name></properties></server></file></RDCMan>"
+	},
+    "resources": [
+        {
+            "apiVersion": "2017-08-01",
+            "name": "[variables('Network')]",
+            "type": "Microsoft.Network/virtualNetworks",
+            "location": "[resourceGroup().location]",
+            "properties": {
+                "addressSpace": {
+                    "addressPrefixes": [
+                        "10.0.0.0/16"
+                    ]
+                },
+                "subnets": [
+                    {
+                        "name": "[variables('IntraSubnet')]",
+                        "properties": {
+                            "addressPrefix": "10.0.0.0/24"
+                        }
+                    },
+					{
+                        "name": "[variables('DMZsubnet')]",
+                        "properties": {
+                            "addressPrefix": "10.0.1.0/24"
+                        }
+                    }
+                ]
+            }
+        },
+		{
+            "name": "[variables('DC-name')]",
+            "type": "Microsoft.Compute/virtualMachines",
+            "apiVersion": "2016-04-30-preview",
+            "location": "[resourceGroup().location]",
+			"dependsOn": [
+                "[concat('Microsoft.Network/publicIpAddresses/',variables('DC-ip'))]",
+				"[concat('Microsoft.Network/networkSecurityGroups/',variables('Intra-nsg'))]",
+				"[concat('Microsoft.Network/networkInterfaces/',variables('DC-net'))]"
+            ],
+            "properties": {
+                "osProfile": {
+                    "computerName": "[variables('DC-name')]",
+                    "adminUsername": "[variables('adminUsername')]",
+                    "adminPassword": "[variables('adminPassword')]",
+                    "windowsConfiguration": {
+                        "provisionVmAgent": "true"
+                    }
+                },
+                "hardwareProfile": {
+                    "vmSize": "Standard_D1_V2"
+                },
+                "storageProfile": {
+                    "imageReference": {
+                        "publisher": "MicrosoftWindowsServer",
+                        "offer": "WindowsServer",
+                        "sku": "2016-Datacenter",
+                        "version": "latest"
+                    },
+                    "osDisk": {
+                        "createOption": "fromImage",
+                        "managedDisk": {
+                            "storageAccountType": "Standard_LRS"
+                        }
+                    },
+                    "dataDisks": []
+                },
+                "networkProfile": {
+                    "networkInterfaces": [
+                        {
+                            "id": "[resourceId('Microsoft.Network/networkInterfaces', variables('DC-net'))]"
+                        }
+                    ]
+                },
+                "diagnosticsProfile": {
+                    "bootDiagnostics": {
+                        "enabled": false
+                    }
+                }
+            }
+        },
+		{
+            "name": "[variables('CLIENT-name')]",
+            "type": "Microsoft.Compute/virtualMachines",
+            "apiVersion": "2016-04-30-preview",
+            "location": "[resourceGroup().location]",
+			"dependsOn": [
+                "[concat('Microsoft.Network/publicIpAddresses/', variables('CLIENT-ip'))]",
+				"[concat('Microsoft.Network/networkInterfaces/',variables('CLIENT-net'))]",
+				"[concat('Microsoft.Network/networkSecurityGroups/',variables('Intra-nsg'))]"
+            ],
+            "properties": {
+                "osProfile": {
+                    "computerName": "[variables('CLIENT-name')]",
+                    "adminUsername": "[variables('adminUsername')]",
+                    "adminPassword": "[variables('adminPassword')]",
+                    "windowsConfiguration": {
+                        "provisionVmAgent": "true"
+                    }
+                },
+                "hardwareProfile": {
+                    "vmSize": "Standard_D1_V2"
+                },
+                "storageProfile": {
+                    "imageReference": {
+                        "publisher": "MicrosoftWindowsDesktop",
+                        "offer": "Windows-10",
+                        "sku": "RS3-Pro",
+                        "version": "latest"
+                    },
+                    "osDisk": {
+                        "createOption": "fromImage",
+                        "managedDisk": {
+                            "storageAccountType": "Standard_LRS"
+                        }
+                    },
+                    "dataDisks": []
+                },
+                "networkProfile": {
+                    "networkInterfaces": [
+                        {
+                            "id": "[resourceId('Microsoft.Network/networkInterfaces', variables('CLIENT-net'))]"
+                        }
+                    ]
+                },
+				"licenseType": "Windows_Client",
+                "diagnosticsProfile": {
+                    "bootDiagnostics": {
+                        "enabled": false
+                    }
+                }
+            }
+        },
+		{
+            "name": "[concat(variables('ADFS-name'),'-1')]",
+            "type": "Microsoft.Compute/virtualMachines",
+            "apiVersion": "2016-04-30-preview",
+            "location": "[resourceGroup().location]",
+			"dependsOn": [
+                "[concat('Microsoft.Network/publicIpAddresses/', concat(variables('ADFS-ip'),'-1'))]",
+				"[concat('Microsoft.Network/networkSecurityGroups/',variables('Intra-nsg'))]",
+				"[concat('Microsoft.Network/networkInterfaces/',concat(variables('ADFS-net'),'-1'))]",
+				"[concat('Microsoft.Compute/availabilitySets/',variables('ADFS-AS'))]"
+            ],
+            "properties": {
+                "osProfile": {
+                    "computerName": "[concat(variables('ADFS-name'),  '-1')]",
+                    "adminUsername": "[variables('adminUsername')]",
+                    "adminPassword": "[variables('adminPassword')]",
+                    "windowsConfiguration": {
+                        "provisionVmAgent": "true"
+                    }
+                },
+                "hardwareProfile": {
+                    "vmSize": "Standard_D1_V2"
+                },
+                "storageProfile": {
+                    "imageReference": {
+                        "publisher": "MicrosoftWindowsServer",
+                        "offer": "WindowsServer",
+                        "sku": "2016-Datacenter",
+                        "version": "latest"
+                    },
+                    "osDisk": {
+                        "createOption": "fromImage",
+                        "managedDisk": {
+                            "storageAccountType": "Standard_LRS"
+                        }
+                    },
+                    "dataDisks": []
+                },
+                "networkProfile": {
+                    "networkInterfaces": [
+                        {
+                            "id": "[resourceId('Microsoft.Network/networkInterfaces', concat(variables('ADFS-net'),'-1'))]"
+                        }
+                    ]
+                },
+                "diagnosticsProfile": {
+                    "bootDiagnostics": {
+                        "enabled": false
+                    }
+                },
+				"availabilitySet": {
+                    "id": "[resourceId('Microsoft.Compute/availabilitySets', variables('ADFS-AS'))]"
+                }
+            }
+        },
+		{
+            "name": "[concat(variables('ADFS-name'),  '-2')]",
+            "type": "Microsoft.Compute/virtualMachines",
+            "apiVersion": "2016-04-30-preview",
+            "location": "[resourceGroup().location]",
+			"dependsOn": [
+                "[concat('Microsoft.Network/publicIpAddresses/', concat(variables('ADFS-ip'),'-1'))]",
+				"[concat('Microsoft.Network/networkSecurityGroups/',variables('Intra-nsg'))]",
+				"[concat('Microsoft.Network/networkInterfaces/',concat(variables('ADFS-net'),'-2'))]",
+				"[concat('Microsoft.Compute/availabilitySets/',variables('ADFS-AS'))]"
+            ],
+            "properties": {
+                "osProfile": {
+                    "computerName": "[concat(variables('ADFS-name'),  '-2')]",
+                    "adminUsername": "[variables('adminUsername')]",
+                    "adminPassword": "[variables('adminPassword')]",
+                    "windowsConfiguration": {
+                        "provisionVmAgent": "true"
+                    }
+                },
+                "hardwareProfile": {
+                    "vmSize": "Standard_D1_V2"
+                },
+                "storageProfile": {
+                    "imageReference": {
+                        "publisher": "MicrosoftWindowsServer",
+                        "offer": "WindowsServer",
+                        "sku": "2016-Datacenter",
+                        "version": "latest"
+                    },
+                    "osDisk": {
+                        "createOption": "fromImage",
+                        "managedDisk": {
+                            "storageAccountType": "Standard_LRS"
+                        }
+                    },
+                    "dataDisks": []
+                },
+                "networkProfile": {
+                    "networkInterfaces": [
+                        {
+                            "id": "[resourceId('Microsoft.Network/networkInterfaces', concat(variables('ADFS-net'),'-2'))]"
+                        }
+                    ]
+                },
+                "diagnosticsProfile": {
+                    "bootDiagnostics": {
+                        "enabled": false
+                    }
+                },
+				"availabilitySet": {
+                    "id": "[resourceId('Microsoft.Compute/availabilitySets', variables('ADFS-AS'))]"
+                }
+            }
+        },
+		{
+            "name": "[concat(variables('WAP-name'),  '-1')]",
+            "type": "Microsoft.Compute/virtualMachines",
+            "apiVersion": "2016-04-30-preview",
+            "location": "[resourceGroup().location]",
+			"dependsOn": [
+                "[concat('Microsoft.Network/publicIpAddresses/', concat(variables('WAP-ip'),'-1'))]",
+				"[concat('Microsoft.Network/networkSecurityGroups/',variables('Intra-nsg'))]",
+				"[concat('Microsoft.Network/networkSecurityGroups/',variables('DMZ-nsg'))]","[concat('Microsoft.Network/networkInterfaces/',concat(variables('WAP-net'),'-1'))]",
+				"[concat('Microsoft.Network/networkInterfaces/',concat(variables('WAP-net-int'),'-1'))]",
+				"[concat('Microsoft.Compute/availabilitySets/',variables('WAP-AS'))]"
+            ],
+            "properties": {
+                "osProfile": {
+                    "computerName": "[concat(variables('WAP-name'),  '-1')]",
+                    "adminUsername": "[variables('adminUsername')]",
+                    "adminPassword": "[variables('adminPassword')]",
+                    "windowsConfiguration": {
+                        "provisionVmAgent": "true"
+                    }
+                },
+                "hardwareProfile": {
+                    "vmSize": "Standard_D1_V2"
+                },
+                "storageProfile": {
+                    "imageReference": {
+                        "publisher": "MicrosoftWindowsServer",
+                        "offer": "WindowsServer",
+                        "sku": "2016-Datacenter",
+                        "version": "latest"
+                    },
+                    "osDisk": {
+                        "createOption": "fromImage",
+                        "managedDisk": {
+                            "storageAccountType": "Standard_LRS"
+                        }
+                    },
+                    "dataDisks": []
+                },
+                "networkProfile": {
+                    "networkInterfaces": [
+                        {
+                            "id": "[resourceId('Microsoft.Network/networkInterfaces', concat(variables('WAP-net'),'-1'))]",
+							"properties": { "primary": true }
+                        },
+						{
+                            "id": "[resourceId('Microsoft.Network/networkInterfaces', concat(variables('WAP-net-int'),'-1'))]",
+							"properties": { "primary": false }
+                        }
+                    ]
+                },
+                "diagnosticsProfile": {
+                    "bootDiagnostics": {
+                        "enabled": false
+                    }
+                },
+				"availabilitySet": {
+                    "id": "[resourceId('Microsoft.Compute/availabilitySets', variables('WAP-AS'))]"
+                }
+            }
+        },
+		{
+            "name": "[concat(variables('WAP-name'),  '-2')]",
+            "type": "Microsoft.Compute/virtualMachines",
+            "apiVersion": "2016-04-30-preview",
+            "location": "[resourceGroup().location]",
+			"dependsOn": [
+                "[concat('Microsoft.Network/publicIpAddresses/', concat(variables('WAP-ip'),'-1'))]",
+				"[concat('Microsoft.Network/networkSecurityGroups/',variables('Intra-nsg'))]",
+				"[concat('Microsoft.Network/networkSecurityGroups/',variables('DMZ-nsg'))]",	"[concat('Microsoft.Network/networkInterfaces/',concat(variables('WAP-net'),'-2'))]",
+				"[concat('Microsoft.Network/networkInterfaces/',concat(variables('WAP-net-int'),'-2'))]",
+				"[concat('Microsoft.Compute/availabilitySets/',variables('WAP-AS'))]"
+            ],
+            "properties": {
+                "osProfile": {
+                    "computerName": "[concat(variables('WAP-name'),  '-2')]",
+                    "adminUsername": "[variables('adminUsername')]",
+                    "adminPassword": "[variables('adminPassword')]",
+                    "windowsConfiguration": {
+                        "provisionVmAgent": "true"
+                    }
+                },
+                "hardwareProfile": {
+                    "vmSize": "Standard_D1_V2"
+                },
+                "storageProfile": {
+                    "imageReference": {
+                        "publisher": "MicrosoftWindowsServer",
+                        "offer": "WindowsServer",
+                        "sku": "2016-Datacenter",
+                        "version": "latest"
+                    },
+                    "osDisk": {
+                        "createOption": "fromImage",
+                        "managedDisk": {
+                            "storageAccountType": "Standard_LRS"
+                        }
+                    },
+                    "dataDisks": []
+                },
+                "networkProfile": {
+                    "networkInterfaces": [
+                        {
+                            "id": "[resourceId('Microsoft.Network/networkInterfaces', concat(variables('WAP-net'),'-2'))]",
+							"properties": { "primary": true }
+                        },
+						{
+                            "id": "[resourceId('Microsoft.Network/networkInterfaces', concat(variables('WAP-net-int'),'-2'))]",
+							"properties": { "primary": false }
+                        }
+                    ]
+                },
+                "diagnosticsProfile": {
+                    "bootDiagnostics": {
+                        "enabled": false
+                    }
+                },
+				"availabilitySet": {
+                    "id": "[resourceId('Microsoft.Compute/availabilitySets', variables('WAP-AS'))]"
+                }
+            }
+        },
+        {
+            "name": "[variables('DC-net')]",
+            "type": "Microsoft.Network/networkInterfaces",
+            "apiVersion": "2016-09-01",
+            "location": "[resourceGroup().location]",
+            "dependsOn": [
+                "[concat('Microsoft.Network/publicIpAddresses/',variables('DC-ip'))]",
+				"[concat('Microsoft.Network/networkSecurityGroups/',variables('Intra-nsg'))]"
+            ],
+            "properties": {
+                "ipConfigurations": [
+                    {
+                        "name": "ipconfig1",
+                        "properties": {
+                            "subnet": {
+                                "id": "[variables('IntraSubnetRef')]"
+                            },
+                            "PrivateIpAddress": "[variables('IpDc')]",
+                            "PrivateIpAllocationMethod": "Static",
+                            "publicIpAddress": {
+                                "id": "[resourceId('Microsoft.Network/publicIpAddresses', variables('DC-ip'))]"
+                            }
+                        }
+                    }
+                ],
+                "networkSecurityGroup": {
+                    "id": "[resourceId('Microsoft.Network/networkSecurityGroups', variables('Intra-nsg'))]"
+                }
+            }
+        },
+		{
+            "name": "[variables('CLIENT-net')]",
+            "type": "Microsoft.Network/networkInterfaces",
+            "apiVersion": "2016-09-01",
+            "location": "[resourceGroup().location]",
+            "dependsOn": [
+                "[concat('Microsoft.Network/publicIpAddresses/',variables('CLIENT-ip'))]",
+				"[concat('Microsoft.Network/networkSecurityGroups/',variables('Intra-nsg'))]"
+            ],
+            "properties": {
+                "ipConfigurations": [
+                    {
+                        "name": "ipconfig1",
+                        "properties": {
+                            "subnet": {
+                                "id": "[variables('IntraSubnetRef')]"
+                            },
+                            "PrivateIpAddress": "[variables('IpCLIENT')]",
+                            "PrivateIpAllocationMethod": "Static",
+                            "publicIpAddress": {
+                                "id": "[resourceId('Microsoft.Network/publicIpAddresses', variables('CLIENT-ip'))]"
+                            }
+                        }
+                    }
+                ],
+                "networkSecurityGroup": {
+                    "id": "[resourceId('Microsoft.Network/networkSecurityGroups', variables('Intra-nsg'))]"
+                }
+            }
+        },
+		{
+            "name": "[concat(variables('WAP-net'),'-1')]",
+            "type": "Microsoft.Network/networkInterfaces",
+            "apiVersion": "2016-09-01",
+            "location": "[resourceGroup().location]",
+            "dependsOn": [
+                "[concat('Microsoft.Network/publicIpAddresses/',concat(variables('WAP-ip'),'-1'))]",
+				"[concat('Microsoft.Network/networkSecurityGroups/',variables('DMZ-nsg'))]",
+				"[concat('Microsoft.Network/loadBalancers/',variables('WAP-LB'))]"
+            ],
+            "properties": {
+                "ipConfigurations": [
+                    {
+                        "name": "ipconfig1",
+                        "properties": {
+                            "subnet": {
+                                "id": "[variables('DMZSubnetRef')]"
+                            },
+                            "PrivateIpAddress": "[variables('IpWAP-1')]",
+                            "PrivateIpAllocationMethod": "Static",
+                            "publicIpAddress": {
+                                "id": "[resourceId('Microsoft.Network/publicIpAddresses', concat(variables('WAP-ip'),'-1'))]"
+                            },
+							"loadBalancerBackendAddressPools": [
+								{
+									"id": "[concat(resourceId('Microsoft.Network/loadBalancers', variables('WAP-LB')),'/backendAddressPools/',variables('WAP-LB-Pool'))]"
+								}
+							]
+                        }
+                    }
+                ],
+                "networkSecurityGroup": {
+                    "id": "[resourceId('Microsoft.Network/networkSecurityGroups', variables('DMZ-nsg'))]"
+                }
+            }
+        },
+		{
+            "name": "[concat(variables('WAP-net'),'-2')]",
+            "type": "Microsoft.Network/networkInterfaces",
+            "apiVersion": "2016-09-01",
+            "location": "[resourceGroup().location]",
+            "dependsOn": [
+                "[concat('Microsoft.Network/publicIpAddresses/',concat(variables('WAP-ip'),'-2'))]",
+				"[concat('Microsoft.Network/networkSecurityGroups/',variables('DMZ-nsg'))]",
+				"[concat('Microsoft.Network/loadBalancers/',variables('WAP-LB'))]"
+            ],
+            "properties": {
+                "ipConfigurations": [
+                    {
+                        "name": "ipconfig1",
+                        "properties": {
+                            "subnet": {
+                                "id": "[variables('DMZSubnetRef')]"
+                            },
+                            "PrivateIpAddress": "[variables('IpWAP-2')]",
+                            "PrivateIpAllocationMethod": "Static",
+                            "publicIpAddress": {
+                                "id": "[resourceId('Microsoft.Network/publicIpAddresses', concat(variables('ADFS-ip'),'-2'))]"
+                            },
+							"loadBalancerBackendAddressPools": [
+								{
+									"id": "[concat(resourceId('Microsoft.Network/loadBalancers', variables('WAP-LB')),'/backendAddressPools/',variables('WAP-LB-Pool'))]"
+								}
+							]
+                        }
+                    }
+                ],
+                "networkSecurityGroup": {
+                    "id": "[resourceId('Microsoft.Network/networkSecurityGroups', variables('DMZ-nsg'))]"
+                }
+            }
+        },
+		{
+            "name": "[concat(variables('WAP-net-int'),'-1')]",
+            "type": "Microsoft.Network/networkInterfaces",
+            "apiVersion": "2016-09-01",
+            "location": "[resourceGroup().location]",
+            "dependsOn": [ 	
+				"[concat('Microsoft.Network/networkSecurityGroups/',variables('Intra-nsg'))]"
+			],
+            "properties": {
+                "ipConfigurations": [
+                    {
+                        "name": "ipconfig1",
+                        "properties": {
+                            "subnet": {
+                                "id": "[variables('IntraSubnetRef')]"
+                            },
+                            "PrivateIpAddress": "[variables('IpWAPInt-1')]",
+                            "PrivateIpAllocationMethod": "Static"
+                            
+                        }
+                    }
+                ],
+                "networkSecurityGroup": {
+                    "id": "[resourceId('Microsoft.Network/networkSecurityGroups', variables('Intra-nsg'))]"
+                }
+            }
+        },
+		{
+            "name": "[concat(variables('WAP-net-int'),'-2')]",
+            "type": "Microsoft.Network/networkInterfaces",
+            "apiVersion": "2016-09-01",
+            "location": "[resourceGroup().location]",
+			"dependsOn": [	
+				"[concat('Microsoft.Network/networkSecurityGroups/',variables('Intra-nsg'))]"
+			],
+            "properties": {
+                "ipConfigurations": [
+                    {
+                        "name": "ipconfig1",
+                        "properties": {
+                            "subnet": {
+                                "id": "[variables('IntraSubnetRef')]"
+                            },
+                            "PrivateIpAddress": "[variables('IpWAPInt-2')]",
+                            "PrivateIpAllocationMethod": "Static"
+                            
+                        }
+                    }
+                ],
+                "networkSecurityGroup": {
+                    "id": "[resourceId('Microsoft.Network/networkSecurityGroups', variables('Intra-nsg'))]"
+                }				
+            }
+        },
+		{
+            "name": "[concat(variables('ADFS-net'),'-1')]",
+            "type": "Microsoft.Network/networkInterfaces",
+            "apiVersion": "2016-09-01",
+            "location": "[resourceGroup().location]",
+            "dependsOn": [
+                "[concat('Microsoft.Network/publicIpAddresses/',concat(variables('ADFS-ip'),'-1'))]",
+				"[concat('Microsoft.Network/networkSecurityGroups/',variables('Intra-nsg'))]",
+				"[concat('Microsoft.Network/loadBalancers/',variables('ADFS-LB'))]"
+            ],
+            "properties": {
+                "ipConfigurations": [
+                    {
+                        "name": "ipconfig1",
+                        "properties": {
+                            "subnet": {
+                                "id": "[variables('IntraSubnetRef')]"
+                            },
+                            "PrivateIpAddress": "[variables('IpADFS-1')]",
+                            "PrivateIpAllocationMethod": "Static",
+                            "publicIpAddress": {
+                                "id": "[resourceId('Microsoft.Network/publicIpAddresses', concat(variables('ADFS-ip'),'-1'))]"
+                            },
+							"loadBalancerBackendAddressPools": [
+								{
+									"id": "[concat(resourceId('Microsoft.Network/loadBalancers', variables('ADFS-LB')),'/backendAddressPools/',variables('ADFS-LB-Pool'))]"
+								}
+							]
+                        }
+                    }
+                ],
+                "networkSecurityGroup": {
+                    "id": "[resourceId( 'Microsoft.Network/networkSecurityGroups', variables('Intra-nsg'))]"
+                }
+            }
+        },
+		{
+            "name": "[concat(variables('ADFS-net'),'-2')]",
+            "type": "Microsoft.Network/networkInterfaces",
+            "apiVersion": "2016-09-01",
+            "location": "[resourceGroup().location]",
+            "dependsOn": [
+                "[concat('Microsoft.Network/publicIpAddresses/',concat(variables('ADFS-ip'),'-2'))]",
+				"[concat('Microsoft.Network/networkSecurityGroups/',variables('Intra-nsg'))]",
+				"[concat('Microsoft.Network/loadBalancers/',variables('ADFS-LB'))]"
+            ],
+            "properties": {
+                "ipConfigurations": [
+                    {
+                        "name": "ipconfig1",
+                        "properties": {
+                            "subnet": {
+                                "id": "[variables('IntraSubnetRef')]"
+                            },
+                            "PrivateIpAddress": "[variables('IpADFS-2')]",
+                            "PrivateIpAllocationMethod": "Static",
+                            "publicIpAddress": {
+                                "id": "[resourceId('Microsoft.Network/publicIpAddresses', concat(variables('WAP-ip'),'-2'))]"
+                            },
+							"loadBalancerBackendAddressPools": [
+								{
+									"id": "[concat(resourceId('Microsoft.Network/loadBalancers', variables('ADFS-LB')),'/backendAddressPools/',variables('ADFS-LB-Pool'))]"
+								}
+							]
+                        }
+                    }
+                ],
+                "networkSecurityGroup": {
+                    "id": "[resourceId( 'Microsoft.Network/networkSecurityGroups', variables('Intra-nsg'))]"
+                }
+            }
+        },
+        {
+            "name": "[variables('DC-ip')]",
+            "type": "Microsoft.Network/publicIpAddresses",
+            "apiVersion": "2017-08-01",
+            "location": "[resourceGroup().location]",
+            "properties": {
+                "publicIpAllocationMethod": "Static",
+                "publicIPAddressVersion": "IPv4"
+            },
+            "sku": {
+                "name": "Basic"
+            }
+        },
+		{
+            "name": "[variables('CLIENT-ip')]",
+            "type": "Microsoft.Network/publicIpAddresses",
+            "apiVersion": "2017-08-01",
+            "location": "[resourceGroup().location]",
+            "properties": {
+                "publicIpAllocationMethod": "Static",
+                "publicIPAddressVersion": "IPv4"
+            },
+            "sku": {
+                "name": "Basic"
+            }
+        },
+		{
+            "name": "[concat(variables('WAP-ip'),'-1')]",
+            "type": "Microsoft.Network/publicIpAddresses",
+            "apiVersion": "2017-08-01",
+            "location": "[resourceGroup().location]",
+            "properties": {
+                "publicIpAllocationMethod": "Static",
+                "publicIPAddressVersion": "IPv4"
+            },
+            "sku": {
+                "name": "Basic"
+            }
+        },
+		{
+            "name": "[concat(variables('WAP-ip'),'-2')]",
+            "type": "Microsoft.Network/publicIpAddresses",
+            "apiVersion": "2017-08-01",
+            "location": "[resourceGroup().location]",
+            "properties": {
+                "publicIpAllocationMethod": "Static",
+                "publicIPAddressVersion": "IPv4"
+            },
+            "sku": {
+                "name": "Basic"
+            }
+        },
+		{
+            "name": "[concat(variables('ADFS-ip'),'-1')]",
+            "type": "Microsoft.Network/publicIpAddresses",
+            "apiVersion": "2017-08-01",
+            "location": "[resourceGroup().location]",
+            "properties": {
+                "publicIpAllocationMethod": "Static",
+                "publicIPAddressVersion": "IPv4"
+            },
+            "sku": {
+                "name": "Basic"
+            }
+        },
+		{
+            "name": "[concat(variables('ADFS-ip'),'-2')]",
+            "type": "Microsoft.Network/publicIpAddresses",
+            "apiVersion": "2017-08-01",
+            "location": "[resourceGroup().location]",
+            "properties": {
+                "publicIpAllocationMethod": "Static",
+                "publicIPAddressVersion": "IPv4"
+            },
+            "sku": {
+                "name": "Basic"
+            }
+        },
+		{
+            "apiVersion": "2017-08-01",
+            "type": "Microsoft.Network/publicIPAddresses",
+            "name": "[variables('WAP-LB-ip')]",
+            "location": "[resourceGroup().location]",
+            "properties": {
+                "publicIPAllocationMethod": "Static",
+                "publicIPAddressVersion": "IPv4"
+            }
+        },
+        {
+            "name": "[variables('Intra-nsg')]",
+            "type": "Microsoft.Network/networkSecurityGroups",
+            "apiVersion": "2017-06-01",
+            "location": "[resourceGroup().location]",
+            "properties": {
+                "securityRules": [
+                    {
+                        "name": "default-allow-rdp",
+                        "properties": {
+                            "priority": 1000,
+                            "protocol": "TCP",
+                            "access": "Allow",
+                            "direction": "Inbound",
+                            "sourceAddressPrefix": "*",
+                            "sourcePortRange": "*",
+                            "destinationAddressPrefix": "*",
+                            "destinationPortRange": "3389"
+                        }
+                    }
+                ]
+            }
+        },
+		{
+            "name": "[variables('DMZ-nsg')]",
+            "type": "Microsoft.Network/networkSecurityGroups",
+            "apiVersion": "2017-06-01",
+            "location": "[resourceGroup().location]",
+            "properties": {
+                "securityRules": [
+                    {
+                        "name": "default-allow-rdp",
+                        "properties": {
+                            "priority": 1000,
+                            "protocol": "TCP",
+                            "access": "Allow",
+                            "direction": "Inbound",
+                            "sourceAddressPrefix": "*",
+                            "sourcePortRange": "*",
+                            "destinationAddressPrefix": "*",
+                            "destinationPortRange": "3389"
+                        }
+                    },
+					{
+                        "name": "allow-https",
+                        "properties": {
+                            "priority": 100,
+                            "protocol": "TCP",
+                            "access": "Allow",
+                            "direction": "Inbound",
+                            "sourceAddressPrefix": "*",
+                            "sourcePortRange": "*",
+                            "destinationAddressPrefix": "*",
+                            "destinationPortRange": "443"
+                        }
+                    }
+                ]
+            }
+        },
+		{
+            "apiVersion": "2017-08-01",
+            "name": "[variables('WAP-LB')]",
+            "type": "Microsoft.Network/loadBalancers",
+            "location": "[resourceGroup().location]",
+            "dependsOn": [
+                "[concat('Microsoft.Network/publicIPAddresses/', variables('WAP-LB-ip'))]"
+            ],
+            "properties": {
+                "frontendIPConfigurations": [
+                    {
+                        "name": "LoadBalancerFrontEnd",
+                        "properties": {
+                            "publicIPAddress": {
+                                "id": "[resourceId('Microsoft.Network/publicIPAddresses', variables('WAP-LB-ip'))]"
+                            }
+                        }
+                    }
+                ],
+				"backendAddressPools": [
+					{
+						"name": "[variables('WAP-LB-Pool')]"
+					}
+				],
+				 "loadBalancingRules": [
+				  {
+					"properties": {
+					  "frontendIPConfiguration": {
+						"id": "[concat(resourceId('Microsoft.Network/loadBalancers', variables('WAP-LB')), '/frontendIpConfigurations/LoadBalancerFrontEnd')]"
+					  },
+					  "backendAddressPool": {
+						"id": "[concat(resourceId('Microsoft.Network/loadBalancers', variables('WAP-LB')), '/backendAddressPools/', variables('WAP-LB-Pool'))]"
+					  },
+					  "probe": {
+						"id": "[concat(resourceId('Microsoft.Network/loadBalancers', variables('WAP-LB')), '/probes/', variables('WAP-LB-Probe'))]"
+					  },
+					  "protocol": "Tcp",
+					  "frontendPort": 443,
+					  "backendPort": 443,
+					  "idleTimeoutInMinutes": 4,
+					  "loadDistribution": "Default"
+					},
+					"Name": "[variables('WAP-LB-Rule')]"
+				  }
+				],
+				"probes": [
+                    {
+                        "name": "[variables('WAP-LB-Probe')]",
+                        "properties": {
+                            "protocol": "Http",
+                            "port": 80,
+                            "requestPath": "/adfs/probe",
+                            "intervalInSeconds": 5,
+                            "numberOfProbes": 2
+                        }
+                    }
+                ]
+            }
+        },
+		{
+            "apiVersion": "2017-08-01",
+            "name": "[variables('ADFS-LB')]",
+            "type": "Microsoft.Network/loadBalancers",
+            "location": "[resourceGroup().location]",
+			"dependsOn": [
+                "[concat('Microsoft.Network/virtualNetworks/',variables('Network'))]",
+				"[concat('Microsoft.Network/networkSecurityGroups/',variables('Intra-nsg'))]"
+            ],
+            "properties": {
+                "frontendIPConfigurations": [
+                    {
+                        "name": "LoadBalancerFrontEnd",
+                        "properties": {
+                            "subnet": {
+                                "id": "[variables('IntraSubnetRef')]"
+                            },
+                            "PrivateIpAddress": "[variables('IpADFS-LBInt')]",
+                            "PrivateIpAllocationMethod": "Static"
+                        }
+                    }
+                ],
+				"backendAddressPools": [
+					{
+						"name": "[variables('ADFS-LB-Pool')]"
+					}
+				],
+				 "loadBalancingRules": [
+				  {
+					"properties": {
+					  "frontendIPConfiguration": {
+						"id": "[concat(resourceId('Microsoft.Network/loadBalancers', variables('ADFS-LB')), '/frontendIpConfigurations/LoadBalancerFrontEnd')]"
+					  },
+					  "backendAddressPool": {
+						"id": "[concat(resourceId('Microsoft.Network/loadBalancers', variables('ADFS-LB')), '/backendAddressPools/', variables('ADFS-LB-Pool'))]"
+					  },
+					  "probe": {
+						"id": "[concat(resourceId('Microsoft.Network/loadBalancers', variables('ADFS-LB')), '/probes/', variables('ADFS-LB-Probe'))]"
+					  },
+					  "protocol": "Tcp",
+					  "frontendPort": 443,
+					  "backendPort": 443,
+					  "idleTimeoutInMinutes": 4,
+					  "loadDistribution": "Default"
+					},
+					"Name": "[variables('ADFS-LB-Rule')]"
+				  }
+				],
+				"probes": [
+                    {
+                        "name": "[variables('ADFS-LB-Probe')]",
+                        "properties": {
+                            "protocol": "Http",
+                            "port": 80,
+                            "requestPath": "/adfs/probe",
+                            "intervalInSeconds": 5,
+                            "numberOfProbes": 2
+                        }
+                    }
+                ]
+            }
+        },
+		{
+            "apiVersion": "2016-04-30-preview",
+            "type": "Microsoft.Compute/availabilitySets",
+            "name": "[variables('WAP-AS')]",
+            "location": "[resourceGroup().location]",
+            "properties": {
+                "platformUpdateDomainCount": "1",
+                "platformFaultDomainCount": "2"
+                
+            },
+            "tags": {},
+            "sku": {
+                "name": "Aligned"
+            }
+        },
+		{
+            "apiVersion": "2016-04-30-preview",
+            "type": "Microsoft.Compute/availabilitySets",
+            "name": "[variables('ADFS-AS')]",
+            "location": "[resourceGroup().location]",
+            "properties": {
+                "platformUpdateDomainCount": "1",
+                "platformFaultDomainCount": "2"
+            },
+            "tags": {},
+            "sku": {
+                "name": "Aligned"
+            }
+        }
+    ],
+	"outputs": {
+        "Admin username": {
+            "type": "string",
+            "value": "[variables('adminUsername')]"
+        },
+		"Admin password": {
+            "type": "string",
+            "value": "[variables('adminPassword')]"
+        },
+		"WAP load balancer public ip": {
+			"type": "string",
+			"value" : "[reference(variables('WAP-LB-ip')).ipAddress]"
+		},
+		"RDCman file": {
+			"type": "string",
+			"value": "[replace(replace(replace(replace(replace(replace(replace(replace(variables('RDCFile'),'ADMINUSERNAME',variables('adminUsername')),'ADMINPASSWORD',variables('adminPassword')),'IP-ADFS-1',reference('ADFS-ip-1').ipAddress),'IP-ADFS-2',reference('ADFS-ip-2').ipAddress),'IP-CLIENT',reference(variables('CLIENT-ip')).ipAddress),'IP-DC',reference(variables('DC-ip')).ipAddress),'IP-WAP-1',reference('WAP-ip-1').ipAddress),'IP-WAP-2',reference('WAP-ip-2').ipAddress)]"
+		}
+    }
+}

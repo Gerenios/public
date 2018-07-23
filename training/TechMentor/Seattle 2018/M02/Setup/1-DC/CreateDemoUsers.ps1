@@ -125,7 +125,7 @@
 
     $NetBiosNadme = $Domain.NetBiosName
     
-    $ParentOUName = "Demo Accounts"
+    $ParentOUName = "Domain Users"
     
     If ((Get-ADOrganizationalUnit -Filter "Name -eq `"$ParentOUName`"" -Server $Server -ErrorAction SilentlyContinue))
         {
@@ -145,11 +145,11 @@
             $ServiceAccountOU = New-ADOrganizationalUnit -Name "Service Accounts" -Path $ParentOU.DistinguishedName -Verbose -PassThru -Server $Server -ErrorAction Stop
             $ServiceGroupOU = New-ADOrganizationalUnit -Name "Service Groups" -Path $ParentOU.DistinguishedName -Verbose -PassThru -Server $Server -ErrorAction Stop
 
-            $UserCount = 1000 #Up to 2500 can be created
+            $UserCount = 100 #Up to 2500 can be created
     
             $InitialPassword = "Password1" #Initial Password for all users
     
-            $Company = "Contoso Computing, LLC."
+            $Company = "Demolab MyO365.site"
     
             $Content = Import-CSV -Path "$($ScriptDir)\$($ScriptName).csv" -ErrorAction Stop | Get-Random -Count $UserCount | Sort-Object -Property State
     
@@ -169,12 +169,12 @@
             $Users = $Content | Select-Object `
                 @{Name="Name";Expression={"$($_.Surname), $($_.GivenName)"}},`
                 @{Name="Description";Expression={"User account for $($_.GivenName) $($_.MiddleInitial). $($_.Surname)"}},`
-                @{Name="SamAccountName"; Expression={"$($_.GivenName.ToCharArray()[0])$($_.MiddleInitial)$($_.Surname)"}},`
-                @{Name="UserPrincipalName"; Expression={"$($_.GivenName.ToCharArray()[0])$($_.MiddleInitial)$($_.Surname)@$($Forest)"}},`
+                @{Name="SamAccountName"; Expression={"$($_.GivenName).$($_.Surname)"}},`
+                @{Name="UserPrincipalName"; Expression={"$($_.GivenName).$($_.Surname)@$($Forest)"}},`
                 @{Name="GivenName"; Expression={$_.GivenName}},`
                 @{Name="Initials"; Expression={$_.MiddleInitial}},`
                 @{Name="Surname"; Expression={$_.Surname}},`
-                @{Name="DisplayName"; Expression={"$($_.GivenName) $($_.MiddleInitial). $($_.Surname)"}},`
+                @{Name="DisplayName"; Expression={"$($_.GivenName) $($_.Surname)"}},`
                 @{Name="City"; Expression={$_.City}},`
                 @{Name="StreetAddress"; Expression={$_.StreetAddress}},`
                 @{Name="State"; Expression={$_.State}},`

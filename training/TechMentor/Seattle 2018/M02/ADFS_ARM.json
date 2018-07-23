@@ -45,7 +45,7 @@
 	  "ADFS-AS": "ADFS-AS",
 	  "WAP-name": "WAP",
 	  "ADFS-name": "ADFS",
-	  "RDCFile": "<?xml version=\"1.0\" encoding=\"utf-8\"?><RDCMan programVersion=\"2.7\" schemaVersion=\"3\"><file>    <properties><expanded>True</expanded><name>ADFS-LAB</name></properties><logonCredentials inherit=\"None\"> <profileName scope=\"Local\">Custom</profileName><userName>ADMINUSERNAME</userName><password storeAsClearText=\"True\">ADMINPASSWORD</password><domain>.</domain></logonCredentials><remoteDesktop inherit=\"None\"><sameSizeAsClientArea>True</sameSizeAsClientArea><fullScreen>False</fullScreen>      <colorDepth>24</colorDepth></remoteDesktop><server><properties><displayName>ADFS-1</displayName><name>IP-ADFS-1</name></properties></server><server><properties><displayName>ADFS-2</displayName><name>IP-ADFS-2</name></properties></server><server><properties><displayName>CLIENT</displayName><name>IP-CLIENT</name></properties></server><server><properties><displayName>DC</displayName><name>IP-DC</name></properties></server><server><properties><displayName>WAP-1</displayName><name>IP-WAP-1</name></properties></server><server><properties><displayName>WAP-2</displayName><name>IP-WAP-2</name></properties></server></file></RDCMan>"
+	  "RDCFile": "<?xml version=\"1.0\" encoding=\"utf-8\"?><RDCMan programVersion=\"2.7\" schemaVersion=\"3\"><file><properties><expanded>True</expanded><name>ADFS-LAB</name></properties><logonCredentials inherit=\"None\"><profileName scope=\"Local\">Custom</profileName><userName>ADMINUSERNAME</userName><password storeAsClearText=\"True\">ADMINPASSWORD</password><domain>.</domain></logonCredentials><remoteDesktop inherit=\"None\"><sameSizeAsClientArea>True</sameSizeAsClientArea><fullScreen>False</fullScreen><colorDepth>24</colorDepth></remoteDesktop><server><properties><displayName>ADFS-1</displayName><name>IP-ADFS-1</name></properties></server><server><properties><displayName>ADFS-2</displayName><name>IP-ADFS-2</name></properties></server><server><properties><displayName>CLIENT</displayName><name>IP-CLIENT</name></properties></server><server><properties><displayName>DC</displayName><name>IP-DC</name></properties></server><server><properties><displayName>WAP-1</displayName><name>IP-WAP-1</name></properties></server><server><properties><displayName>WAP-2</displayName><name>IP-WAP-2</name></properties></server></file></RDCMan>"
 	},
     "resources": [
         {
@@ -527,7 +527,7 @@
                             "PrivateIpAddress": "[variables('IpWAP-2')]",
                             "PrivateIpAllocationMethod": "Static",
                             "publicIpAddress": {
-                                "id": "[resourceId('Microsoft.Network/publicIpAddresses', concat(variables('ADFS-ip'),'-2'))]"
+                                "id": "[resourceId('Microsoft.Network/publicIpAddresses', concat(variables('WAP-ip'),'-2'))]"
                             },
 							"loadBalancerBackendAddressPools": [
 								{
@@ -653,7 +653,7 @@
                             "PrivateIpAddress": "[variables('IpADFS-2')]",
                             "PrivateIpAllocationMethod": "Static",
                             "publicIpAddress": {
-                                "id": "[resourceId('Microsoft.Network/publicIpAddresses', concat(variables('WAP-ip'),'-2'))]"
+                                "id": "[resourceId('Microsoft.Network/publicIpAddresses', concat(variables('ADFS-ip'),'-2'))]"
                             },
 							"loadBalancerBackendAddressPools": [
 								{

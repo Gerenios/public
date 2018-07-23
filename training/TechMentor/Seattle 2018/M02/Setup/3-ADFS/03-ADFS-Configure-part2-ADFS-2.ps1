@@ -5,17 +5,17 @@ $Credential = New-Object -TypeName PSCredential -ArgumentList $AdminName, (Conve
 $CertName="star.myo365.site.pfx"
 
 # Download and install certificate
-wget "http://dl.o365.center/$CertName" -OutFile "$env:TEMP\$CertName"
+[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+wget "https://github.com/Gerenios/public/blob/master/training/TechMentor/Seattle%202018/M02/$CertName\?raw=true" -OutFile "$env:TEMP\$CertName"
 $Thubmprint = (Import-PfxCertificate -FilePath "$env:TEMP\$CertName" -CertStoreLocation Cert:\LocalMachine\My).Thumbprint
 
 # Install ADFS role
 Install-WindowsFeature ADFS-Federation –IncludeManagementTools
 
-# Install ADFS farm
+# Install node to ADFS farm
 Import-Module ADFS
-Install-AdfsFarm `
+Add-AdfsFarmNode `
 -CertificateThumbprint:$Thubmprint `
 -Credential:$Credential `
--FederationServiceDisplayName:"My STS" `
--FederationServiceName:"sts-$MyDomain" `
--GroupServiceAccountIdentifier:"DEMOLAB\sv_adfs`$" 
+-GroupServiceAccountIdentifier:"DEMOLAB\sv_adfs`$" `
+-PrimaryComputerName:"adfs-1.demolab.myo365.site" 

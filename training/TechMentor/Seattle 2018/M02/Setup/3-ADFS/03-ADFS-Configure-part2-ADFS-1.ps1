@@ -23,3 +23,9 @@ Install-AdfsFarm `
 
 # For testing, enable IdP initiated signon page 
 Set-AdfsProperties -EnableIdpInitiatedSignonPage $true
+
+# Enable SSO for all browsers
+Set-AdfsProperties -WIASupportedUseragents @{add="Mozilla/5.0"}
+
+# Restart the AD FS service
+Restart-Service ADFSSRV

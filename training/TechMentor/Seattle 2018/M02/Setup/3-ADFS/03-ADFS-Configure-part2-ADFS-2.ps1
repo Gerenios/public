@@ -19,3 +19,9 @@ Add-AdfsFarmNode `
 -Credential:$Credential `
 -GroupServiceAccountIdentifier:"DEMOLAB\sv_adfs`$" `
 -PrimaryComputerName:"adfs-1.demolab.myo365.site" 
+
+# Enable SSO for all browsers
+Set-AdfsProperties -WIASupportedUseragents @{add="Mozilla/5.0"}
+
+# Restart the AD FS service
+Restart-Service ADFSSRV

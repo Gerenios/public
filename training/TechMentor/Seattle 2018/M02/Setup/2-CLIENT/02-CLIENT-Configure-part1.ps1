@@ -8,5 +8,5 @@ $Credential = New-Object -TypeName PSCredential -ArgumentList $AdminName, (Conve
 # Set DC as dns server
 Set-DnsClientServerAddress -InterfaceIndex (Get-Netadapter).InterfaceIndex -ServerAddresses ("10.0.0.4","8.8.8.8")
 
-# Add server to domain
+# Add client to domain
 Add-Computer -DomainName $MyDomain -Restart -Credential $Credential
